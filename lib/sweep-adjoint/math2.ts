@@ -65,3 +65,17 @@ export function formatPct(frac: number): string {
   if (!Number.isFinite(frac)) return "∞";
   return `${(frac * 100).toFixed(1)}%`;
 }
+
+/** Hero readout for a relative L2 error. Tiny values are machine precision, not 0.0%. */
+export function formatRelError(frac: number): { headline: string; detail: string } {
+  if (!Number.isFinite(frac)) {
+    return { headline: "∞", detail: "gold gradient is ~0" };
+  }
+  if (frac < 1e-10) {
+    return { headline: "~0", detail: "machine precision" };
+  }
+  if (frac < 1e-4) {
+    return { headline: frac.toExponential(1), detail: "near tape" };
+  }
+  return { headline: `${(frac * 100).toFixed(1)}%`, detail: "relative L2" };
+}

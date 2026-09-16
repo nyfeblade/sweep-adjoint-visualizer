@@ -34,7 +34,7 @@ export {
   UNROLLED_BYTES_PER_VERTEX_ITER,
   MEASURED_BYTES_PER_VERTEX,
 } from "./memory";
-export { formatBytes, formatPct, relError, maxAbsDiff } from "./math2";
+export { formatBytes, formatPct, formatRelError, relError, maxAbsDiff } from "./math2";
 export { probeLoss } from "./energy";
 export {
   proveK1,
