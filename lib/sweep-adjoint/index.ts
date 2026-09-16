@@ -36,6 +36,14 @@ export {
 } from "./memory";
 export { formatBytes, formatPct, relError, maxAbsDiff } from "./math2";
 export { probeLoss } from "./energy";
+export {
+  proveK1,
+  createK1ProofCloth,
+  fdForceGrad,
+  K1_PROOF_GRID,
+  K1_PROOF_SWEEPS,
+} from "./prove-k1";
+export type { K1Proof } from "./prove-k1";
 export type {
   ClothState,
   ClothParams,

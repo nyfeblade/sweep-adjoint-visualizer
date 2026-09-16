@@ -143,6 +143,10 @@ export function ExplainerApp() {
           <a className="underline underline-offset-4" href={BRIEF.arxivUrl}>
             arXiv:{BRIEF.arxiv}
           </a>
+          {" · "}
+          <a className="underline underline-offset-4" href="/k1">
+            K=1 proof
+          </a>
         </p>
         <h1 className="max-w-4xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           {BRIEF.title}

@@ -1,31 +1,14 @@
 import { SweepAdjointError } from "./errors";
-import { probeLoss } from "./energy";
-import { createCloth, createEmptyMesh, resetToRest } from "./mesh";
+import { createCloth, createEmptyMesh } from "./mesh";
 import { tryAllocateTape, tapeBytesFor } from "./memory";
-import { forwardSweeps, runExplainer } from "./solver";
-import type { ClothState } from "./types";
+import { createK1ProofCloth, fdForceGrad, proveK1 } from "./prove-k1";
+import { runExplainer } from "./solver";
 
 export type SelfTestResult = {
   name: string;
   ok: boolean;
   detail: string;
 };
-
-function fdForceGrad(state: ClothState, sweeps: number, vertex: number, axis: 0 | 1, eps = 1e-5): number {
-  const idx = 2 * vertex + axis;
-  const orig = state.force[idx];
-  resetToRest(state);
-  state.force[idx] = orig + eps;
-  forwardSweeps(state, sweeps);
-  const lp = probeLoss(state);
-  resetToRest(state);
-  state.force[idx] = orig - eps;
-  forwardSweeps(state, sweeps);
-  const lm = probeLoss(state);
-  state.force[idx] = orig;
-  resetToRest(state);
-  return (lp - lm) / (2 * eps);
-}
 
 export function runSelfTests(): SelfTestResult[] {
   const results: SelfTestResult[] = [];
@@ -46,22 +29,24 @@ export function runSelfTests(): SelfTestResult[] {
     results.push({ name: "K=0", ok, detail: ok ? error.code : String(error) });
   }
 
-  const tiny = createCloth(6, 6);
-  tiny.targetX = tiny.rest[2 * tiny.handle] + 1.6;
-  tiny.targetY = tiny.rest[2 * tiny.handle + 1] - 1.8;
-  const k1 = runExplainer(tiny, 1);
+  const proof = proveK1();
   results.push({
     name: "sweep matches unrolled at K=1",
-    ok: k1.sweepVsUnrolled < 1e-8,
-    detail: `rel ${k1.sweepVsUnrolled.toExponential(2)}`,
+    ok: proof.sweepVsUnrolled < 1e-8,
+    detail: `rel ${proof.sweepVsUnrolled.toExponential(2)}`,
   });
   results.push({
     name: "IFT disagrees at K=1",
-    ok: k1.iftVsSweep > 0.08,
-    detail: `rel ${k1.iftVsSweep.toFixed(3)}`,
+    ok: proof.iftVsSweep > 0.08,
+    detail: `rel ${proof.iftVsSweep.toFixed(3)}`,
+  });
+  results.push({
+    name: "/k1 FD ≈ sweep; IFT wrong",
+    ok: proof.ok,
+    detail: `fd=${proof.fd.toExponential(3)} sweep=${proof.sweep.toExponential(3)} ift=${proof.ift.toExponential(3)} sweepVsFd=${proof.sweepVsFd.toExponential(2)} iftVsFd=${proof.iftVsFd.toFixed(3)}`,
   });
 
-  const k32 = runExplainer(tiny, 32);
+  const k32 = runExplainer(createK1ProofCloth(), 32);
   results.push({
     name: "sweep matches unrolled at K=32",
     ok: k32.sweepVsUnrolled < 1e-7,
@@ -69,8 +54,8 @@ export function runSelfTests(): SelfTestResult[] {
   });
   results.push({
     name: "IFT moves toward sweep as K grows",
-    ok: k32.iftVsSweep < k1.iftVsSweep,
-    detail: `K=1 ${k1.iftVsSweep.toFixed(3)} → K=32 ${k32.iftVsSweep.toFixed(3)}`,
+    ok: k32.iftVsSweep < proof.iftVsSweep,
+    detail: `K=1 ${proof.iftVsSweep.toFixed(3)} → K=32 ${k32.iftVsSweep.toFixed(3)}`,
   });
 
   const fdState = createCloth(5, 5);
