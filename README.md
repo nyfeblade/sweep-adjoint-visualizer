@@ -37,7 +37,19 @@ K=1 verification (the thesis, not chrome):
 python3 scripts/verify_k1.py
 ```
 
-If NumPy is missing: `python3 -m pip install numpy`.
+If NumPy is missing:
+
+```bash
+python3 -m pip install -r scripts/requirements.txt
+```
+
+Homebrew Python is PEP 668-managed. Use a venv if user install is blocked:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r scripts/requirements.txt
+.venv/bin/python scripts/verify_k1.py
+```
 
 **What numbers mean the thesis holds.** The script prints ∂L/∂p (handle force_x) four ways after **one** VBD sweep on a 10×10 grid. Pass when:
 

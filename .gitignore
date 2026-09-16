@@ -42,3 +42,8 @@ next-env.d.ts
 
 # local agent scratch
 /agent-tools/
+
+# python
+.venv/
+__pycache__/
+*.pyc
