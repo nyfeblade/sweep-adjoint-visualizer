@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 
 import type { ClothState, OverlayMode } from "@/lib/sweep-adjoint";
 
@@ -19,7 +19,8 @@ type ClothCanvasProps = {
   iftAdj: Float64Array | null;
   overlay: OverlayMode;
   disabled?: boolean;
-  onDrag: (index: number, x: number, y: number) => void;
+  onDragStart: () => void;
+  onDragEnd: (index: number, x: number, y: number) => void;
 };
 
 export function ClothCanvas({
@@ -29,18 +30,23 @@ export function ClothCanvas({
   iftAdj,
   overlay,
   disabled = false,
-  onDrag,
+  onDragStart,
+  onDragEnd,
 }: ClothCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragRef = useRef<number | null>(null);
+  const lastTargetRef = useRef<{ index: number; x: number; y: number } | null>(null);
+  const [dragOrigin, setDragOrigin] = useState<Float64Array | null>(null);
+  const [preview, setPreview] = useState<Float64Array | null>(null);
+  const display = preview && positions === dragOrigin ? preview : positions;
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    drawCloth(ctx, canvas, state, positions, sweepAdj, iftAdj, overlay);
-  }, [state, positions, sweepAdj, iftAdj, overlay]);
+    drawCloth(ctx, canvas, state, display, sweepAdj, iftAdj, overlay);
+  }, [state, display, sweepAdj, iftAdj, overlay]);
 
   const toWorld = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -50,6 +56,17 @@ export function ClothCanvas({
     const mx = ((clientX - rect.left) * (canvas.width / rect.width) - layout.ox) / layout.scale;
     const my = (layout.oy - (clientY - rect.top) * (canvas.height / rect.height)) / layout.scale;
     return { x: mx, y: my };
+  };
+
+  const movePreview = (index: number, x: number, y: number) => {
+    lastTargetRef.current = { index, x, y };
+    setPreview((prev) => {
+      const src = prev ?? positions ?? state.x;
+      const next = new Float64Array(src);
+      next[2 * index] = x;
+      next[2 * index + 1] = y;
+      return next;
+    });
   };
 
   const onPointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -71,19 +88,29 @@ export function ClothCanvas({
     }
     if (best < 0 || bestD > 2.4) return;
     dragRef.current = best;
+    setDragOrigin(positions);
     event.currentTarget.setPointerCapture(event.pointerId);
-    onDrag(best, world.x, world.y);
+    lastTargetRef.current = { index: best, x: world.x, y: world.y };
+    const src = positions ?? state.x;
+    const seeded = new Float64Array(src);
+    seeded[2 * best] = world.x;
+    seeded[2 * best + 1] = world.y;
+    setPreview(seeded);
+    onDragStart();
   };
 
   const onPointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
     if (disabled || dragRef.current === null) return;
     const world = toWorld(event.clientX, event.clientY);
     if (!world) return;
-    onDrag(dragRef.current, world.x, world.y);
+    movePreview(dragRef.current, world.x, world.y);
   };
 
   const endDrag = () => {
+    const target = lastTargetRef.current;
+    if (dragRef.current === null || !target) return;
     dragRef.current = null;
+    onDragEnd(target.index, target.x, target.y);
   };
 
   return (
@@ -94,6 +121,7 @@ export function ClothCanvas({
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
+      onLostPointerCapture={endDrag}
     />
   );
 }
