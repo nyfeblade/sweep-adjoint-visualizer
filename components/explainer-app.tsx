@@ -19,12 +19,15 @@ import {
   createEmptyMesh,
   errorCopy,
   formatPct,
+  measureSolverWorkspaces,
   runExplainer,
   runLive,
   setDraggedNode,
   tapeBytesFor,
   tryAllocateTape,
   type ClothState,
+  type MeasuredHold,
+  type MeasuredMemory,
   type OverlayMode,
   type SolverErrorCode,
   type TapeAllocation,
@@ -43,7 +46,11 @@ export function ExplainerApp() {
   const [sweepVsUnrolled, setSweepVsUnrolled] = useState<number | null>(null);
   const [error, setError] = useState<SolverErrorCode | null>(null);
   const [tape, setTape] = useState<TapeAllocation | null>(null);
+  const [measured, setMeasured] = useState<MeasuredMemory | null>(null);
+  const [allocLive, setAllocLive] = useState(false);
   const tapeHold = useRef<ArrayBuffer | null>(null);
+  const measuredHold = useRef<MeasuredHold | null>(null);
+  const panelN = emptyMesh ? 0 : 400;
 
   const mesh = emptyMesh ? createEmptyMesh() : cloth;
   const liveK = Math.min(k, LIVE_SOLVE_CAP);
@@ -105,15 +112,30 @@ export function ExplainerApp() {
     });
   };
 
+  useEffect(() => {
+    if (!allocLive) {
+      tapeHold.current = null;
+      measuredHold.current = null;
+      setTape(null);
+      setMeasured(null);
+      return;
+    }
+    const allocK = Math.max(k, 1);
+    const nextTape = tryAllocateTape(tapeBytesFor(panelN, allocK));
+    tapeHold.current = nextTape.ok ? nextTape.buffer : null;
+    setTape(nextTape);
+
+    const nextMeasured = measureSolverWorkspaces(panelN, allocK, measuredHold.current);
+    measuredHold.current = nextMeasured.ok ? nextMeasured.hold : null;
+    setMeasured(nextMeasured);
+  }, [allocLive, panelN, k]);
+
   const onAllocate = () => {
-    const next = tryAllocateTape(tapeBytesFor(mesh.n || 400, Math.max(k, 1)));
-    tapeHold.current = next.ok ? next.buffer : null;
-    setTape(next);
+    setAllocLive(true);
   };
 
   const onRelease = () => {
-    tapeHold.current = null;
-    setTape(null);
+    setAllocLive(false);
   };
 
   const copy = error ? errorCopy(error) : null;
@@ -257,9 +279,10 @@ export function ExplainerApp() {
           </Card>
 
           <MemoryPanel
-            n={emptyMesh ? 0 : 400}
+            n={panelN}
             k={k}
             tape={tape}
+            measured={measured}
             onAllocate={onAllocate}
             onRelease={onRelease}
           />

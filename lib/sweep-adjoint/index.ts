@@ -22,7 +22,18 @@ export {
 } from "./solver";
 export { BRIEF, LIVE_SOLVE_CAP } from "./copy";
 export type { LiveResult } from "./solver";
-export { memoryReport, tryAllocateTape, tapeBytesFor, UNROLLED_BYTES_PER_VERTEX_ITER } from "./memory";
+export {
+  memoryReport,
+  tryAllocateTape,
+  tapeBytesFor,
+  measureSolverWorkspaces,
+  measuredTapeBytesFor,
+  measuredSweepBytesFor,
+  createUnrolledTape,
+  createSweepWorkspace,
+  UNROLLED_BYTES_PER_VERTEX_ITER,
+  MEASURED_BYTES_PER_VERTEX,
+} from "./memory";
 export { formatBytes, formatPct, relError, maxAbsDiff } from "./math2";
 export { probeLoss } from "./energy";
 export type {
@@ -32,5 +43,7 @@ export type {
   MemoryReport,
   OverlayMode,
   TapeAllocation,
+  MeasuredHold,
+  MeasuredMemory,
   MethodName,
 } from "./types";

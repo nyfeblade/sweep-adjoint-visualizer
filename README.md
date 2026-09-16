@@ -61,6 +61,14 @@ That is the paper: differentiate the solver that ran, not the equation. IFT is t
 
 `npm run check:math` is the same claim in the in-repo TypeScript module.
 
+`npm run check:memory` is the memory claim as a measured hold, not a schematic bar. It allocates the TypedArrays the solvers actually keep and asserts:
+
+- measured sweep `.byteLength` is identical across K ∈ {1, 8, 32, 100}
+- measured tape grows as K×N×16 B (tape at K=32 is 32× tape at K=1)
+- measured tape exceeds sweep for K ≫ 1
+
+That is `.byteLength` of the real buffers — not the schematic K×N×256 model, and not `performance.memory`. The Memory panel shows both: **Schematic** (fat-tape model) and **Measured** (held workspaces after **Materialize tape**).
+
 ## GIF-quality: what you watch
 
 1. The page opens at **K=1** on a hanging 20×20 curtain.
@@ -69,7 +77,7 @@ That is the paper: differentiate the solver that ran, not the equation. IFT is t
 4. **Blue reverse-sweep arrows** stay with the solver that actually ran. They match unrolled AD to machine precision.
 5. Click **K=32**. Red and blue meet.
 6. Drag the K slider to **1000**. The tape-AD memory bar balloons O(K×N). Sweep-adjoint stays a flat sliver — O(1) versus K.
-7. **Materialize tape** at large K: allocation grows with K×N, then OOM.
+7. **Materialize tape** at large K: schematic allocation grows with K×N×256 B, then OOM. The **Measured** bars next to it are `.byteLength` of the real tape (K×N×16 B) and sweep workspace (N×16 B, flat vs K).
 8. **K=0** and **Empty mesh** are hard errors, not blank screens.
 
 ## Math (in-repo)
@@ -81,8 +89,9 @@ That is the paper: differentiate the solver that ran, not the equation. IFT is t
 - Unrolled-AD tape twin (O(K×N))
 - Equation-level IFT via the energy Hessian
 - Empty mesh / K=0 throw `SweepAdjointError`
+- Measured workspace hold: tape = K×N×16 B, sweep = N×16 B (`npm run check:memory`)
 
-Self-check: sweep-adjoint matches the tape to ~0 relative error; IFT is far at K=1 and meets at large K.
+Self-check: sweep-adjoint matches the tape to ~0 relative error; IFT is far at K=1 and meets at large K. Memory self-check: measured sweep is flat vs K; measured tape is K× the K=1 tape.
 
 ## Not this repo
 
