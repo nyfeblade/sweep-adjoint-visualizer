@@ -219,6 +219,8 @@ export type LiveResult = {
   sweepAdj: Float64Array;
   iftAdj: Float64Array;
   iftVsSweep: number;
+  sweepVsUnrolled: number;
+  iftVsUnrolled: number;
   sweeps: number;
   cgIters: number;
 };
@@ -227,7 +229,11 @@ export function runLive(input: ClothState, sweeps: number): LiveResult {
   requireMesh(input, sweeps);
   resetPositions(input);
   const x0 = copyF64(input.x);
-  forwardSweeps(input, sweeps);
+
+  const unrolledState = clonePositions(input);
+  const unrolledAdj = unrolledAdjoint(unrolledState, sweeps);
+
+  input.x.set(unrolledState.x);
   const x = copyF64(input.x);
   const loss = probeLoss(input);
   const { adj: iftAdj, iters: cgIters } = iftAdjoint(input);
@@ -238,6 +244,8 @@ export function runLive(input: ClothState, sweeps: number): LiveResult {
     loss,
     sweepAdj,
     iftAdj,
+    sweepVsUnrolled: relL2(sweepAdj, unrolledAdj),
+    iftVsUnrolled: relL2(iftAdj, unrolledAdj),
     iftVsSweep: relL2(iftAdj, sweepAdj),
     sweeps,
     cgIters,
