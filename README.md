@@ -25,7 +25,6 @@ Node **22** (this repo is developed on 22.14). Python **3.12+** with NumPy for t
 ```bash
 git clone https://github.com/nyfeblade/sweep-adjoint-visualizer.git
 cd sweep-adjoint-visualizer
-git checkout cursor/sweep-adjoint-explainer-8a89
 npm install
 npm run dev -- -p 43187
 ```
