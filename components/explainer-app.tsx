@@ -18,7 +18,7 @@ import {
   createCloth,
   createEmptyMesh,
   errorCopy,
-  formatPct,
+  formatRelError,
   measureSolverWorkspaces,
   runExplainer,
   setDraggedNode,
@@ -32,6 +32,16 @@ import {
   type TapeAllocation,
 } from "@/lib/sweep-adjoint";
 
+const THESIS = BRIEF.thesis;
+const PATH = [
+  "Leave K=1",
+  "Drag the gold node",
+  "Toggle red, then blue",
+  "Read the error %",
+  "Raise K — red approaches blue",
+  "Slide K to 1000 for memory",
+] as const;
+
 export function ExplainerApp() {
   const baseCloth = useMemo(() => createCloth(20, 20), []);
   const [emptyMesh, setEmptyMesh] = useState(false);
@@ -43,6 +53,7 @@ export function ExplainerApp() {
   const [iftAdj, setIftAdj] = useState<Float64Array | null>(null);
   const [iftVsSweep, setIftVsSweep] = useState<number | null>(null);
   const [sweepVsUnrolled, setSweepVsUnrolled] = useState<number | null>(null);
+  const [iftVsUnrolled, setIftVsUnrolled] = useState<number | null>(null);
   const [solveError, setSolveError] = useState<SolverErrorCode | null>(null);
   const [tape, setTape] = useState<TapeAllocation | null>(null);
   const [measured, setMeasured] = useState<MeasuredMemory | null>(null);
@@ -62,6 +73,7 @@ export function ExplainerApp() {
   const liveIftAdj = hardError ? null : iftAdj;
   const liveIftVsSweep = hardError ? null : iftVsSweep;
   const liveSweepVsUnrolled = hardError ? null : sweepVsUnrolled;
+  const liveIftVsUnrolled = hardError ? null : iftVsUnrolled;
 
   useEffect(() => {
     if (hardError || dragging) return;
@@ -77,6 +89,7 @@ export function ExplainerApp() {
         setIftAdj(full.iftAdj);
         setIftVsSweep(full.iftVsSweep);
         setSweepVsUnrolled(full.sweepVsUnrolled);
+        setIftVsUnrolled(full.iftVsUnrolled);
       } catch (caught) {
         if (caught instanceof SweepAdjointError) {
           setSolveError(caught.code);
@@ -130,48 +143,44 @@ export function ExplainerApp() {
   };
 
   const copy = error ? errorCopy(error) : null;
-  const match =
-    liveSweepVsUnrolled !== null && Number.isFinite(liveSweepVsUnrolled)
-      ? maxAbsDiffLabel(liveSweepVsUnrolled)
-      : null;
+  const pending = dragging ? "recompute on release" : "computing live adjoints";
+  const blue = liveSweepVsUnrolled === null ? null : formatRelError(liveSweepVsUnrolled);
+  const red =
+    liveIftVsUnrolled !== null
+      ? formatRelError(liveIftVsUnrolled)
+      : liveIftVsSweep !== null
+        ? formatRelError(liveIftVsSweep)
+        : null;
+  const redFormula =
+    liveIftVsUnrolled !== null ? "|red − unrolled| / |unrolled|" : "|red − blue|";
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
-      <header className="space-y-3">
-        <p className="font-mono text-xs tracking-wide text-blue-300/80">
-          {BRIEF.paper} ·{" "}
-          <a className="underline underline-offset-4" href={BRIEF.arxivUrl}>
-            arXiv:{BRIEF.arxiv}
-          </a>
-          {" · "}
-          <a className="underline underline-offset-4" href="/k1">
-            K=1 proof
-          </a>
-        </p>
-        <h1 className="max-w-4xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-          {BRIEF.title}
-        </h1>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline">20×20 VBD · 400 nodes · CPU</Badge>
-          <Badge variant="outline">Red IFT · Blue reverse-sweep</Badge>
-          <Badge variant="outline">K = 1 → 1000 memory</Badge>
-        </div>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <header className="space-y-4">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{BRIEF.title}</h1>
+        <ol className="max-w-3xl space-y-1.5 text-lg leading-snug text-pretty sm:text-xl">
+          {THESIS.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ol>
+        <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          {PATH.map((step, i) => (
+            <li key={step} className="inline-flex items-center gap-1.5">
+              <span className="font-mono text-foreground/80">{i + 1}.</span>
+              {step}
+            </li>
+          ))}
+        </ol>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <CopyCard title="Problem" body={BRIEF.problem} />
-        <CopyCard title="This demo" body={BRIEF.thisDemo} />
-        <CopyCard title="Who is this for" body={BRIEF.who} />
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
         <Card className="overflow-hidden bg-card/80">
           <CardHeader className="border-b">
-            <CardTitle>Drag a node</CardTitle>
+            <CardTitle>Drag the gold node.</CardTitle>
             <CardDescription>
-              Gold node is the handle. Purple is the probe loss. Drag redraws the cloth; arrows and
-              error % recompute when you release. At K=1, red IFT is wild; blue reverse-sweep is the
-              true gradient. Slide K up — they meet.
+              Arrows are two gradient estimates, not physics forces. Red is IFT. Blue is
+              sweep-adjoint. Gold is the handle you drag. Drag redraws the cloth; arrows and error %
+              recompute when you release.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pt-4">
@@ -191,104 +200,135 @@ export function ExplainerApp() {
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
             />
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-rose-500" /> IFT (equation)
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-blue-500" /> Reverse-sweep (solver)
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-amber-400" /> Handle
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-purple-400" /> Probe
-              </span>
-              {liveIftVsSweep !== null ? (
-                <span className="font-mono text-foreground">
-                  IFT vs sweep {formatPct(liveIftVsSweep)}
-                </span>
-              ) : null}
-              {match ? <span className="font-mono text-blue-300">{match}</span> : null}
-            </div>
           </CardContent>
         </Card>
 
         <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <ErrorReadout
+              tone="blue"
+              title="Blue vs tape"
+              formula="|blue − unrolled| / |unrolled|"
+              value={blue}
+              pending={pending}
+            />
+            <ErrorReadout
+              tone="red"
+              title="Red vs tape"
+              formula={redFormula}
+              value={red}
+              pending={pending}
+            />
+          </div>
+
           <Card className="bg-card/80">
-            <CardHeader className="border-b">
-              <CardTitle>K sweeps</CardTitle>
+            <CardHeader className="border-b py-3">
+              <CardTitle className="text-base">K sweeps</CardTitle>
               <CardDescription>
-                Arrows solve min(K, {LIVE_SOLVE_CAP}) so the cloth stays live. Memory uses the K you
-                set, including 1000.
+                Arrows use min(K, {LIVE_SOLVE_CAP}). Memory uses the K you set, including 1000.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
               <div className="flex items-baseline justify-between">
-                <span className="font-mono text-3xl font-semibold">{k}</span>
+                <span className="font-mono text-4xl font-semibold">{k}</span>
                 <span className="text-xs text-muted-foreground">
                   {emptyMesh
-                    ? "live adjoint K=\u2014"
+                    ? "live K=\u2014"
                     : arrowsCapped
                       ? `arrows use K=${liveK} (capped)`
-                      : `live adjoint K=${liveK}`}
+                      : `live K=${liveK}`}
                 </span>
               </div>
               <Slider
-                min={0}
+                min={1}
                 max={1000}
                 step={1}
                 value={[k]}
                 onValueChange={(value) => {
                   const next = Array.isArray(value) ? value[0] : value;
-                  setK(typeof next === "number" ? next : 0);
+                  setK(typeof next === "number" ? next : 1);
                 }}
               />
               <div className="flex flex-wrap gap-2">
-                {[0, 1, 8, 32, 1000].map((preset) => (
+                {[1, 8, 32, 1000].map((preset) => (
                   <Button
                     key={preset}
                     size="xs"
                     variant={k === preset ? "default" : "outline"}
                     onClick={() => setK(preset)}
                   >
-                    K={preset}
+                    {preset === 1000 ? "Crank K to 1000" : `K=${preset}`}
                   </Button>
                 ))}
               </div>
               <div className="flex flex-wrap gap-2">
-                {(["both", "sweep", "ift"] as OverlayMode[]).map((mode) => (
-                  <Toggle
-                    key={mode}
-                    variant="outline"
-                    pressed={overlay === mode}
-                    onPressedChange={() => setOverlay(mode)}
-                    className="capitalize"
-                  >
-                    {mode === "ift" ? "Red IFT" : mode === "sweep" ? "Blue sweep" : "Both"}
-                  </Toggle>
-                ))}
+                <Toggle
+                  variant="outline"
+                  pressed={overlay === "ift"}
+                  onPressedChange={() => setOverlay("ift")}
+                >
+                  Red IFT alone
+                </Toggle>
+                <Toggle
+                  variant="outline"
+                  pressed={overlay === "sweep"}
+                  onPressedChange={() => setOverlay("sweep")}
+                >
+                  Blue sweep alone
+                </Toggle>
+                <Toggle
+                  variant="outline"
+                  pressed={overlay === "both"}
+                  onPressedChange={() => setOverlay("both")}
+                >
+                  Both
+                </Toggle>
               </div>
-              <Toggle
-                variant="outline"
-                pressed={emptyMesh}
-                onPressedChange={setEmptyMesh}
-              >
-                Empty mesh
-              </Toggle>
             </CardContent>
           </Card>
 
-          <MemoryPanel
-            n={panelN}
-            k={k}
-            tape={allocLive ? tape : null}
-            measured={allocLive ? measured : null}
-            onAllocate={onAllocate}
-            onRelease={onRelease}
-          />
+          <MemoryPanel n={panelN} k={k} onCrank={() => setK(1000)} />
         </div>
       </div>
+
+      <details className="rounded-xl border bg-card/80 px-4 py-3">
+        <summary className="cursor-pointer text-sm font-medium">
+          Details — paper, VBD, reverse-color, empty mesh
+        </summary>
+        <div className="mt-4 space-y-4 text-sm leading-6">
+          <p className="text-muted-foreground">
+            {BRIEF.paper} ·{" "}
+            <a className="underline underline-offset-4" href={BRIEF.arxivUrl}>
+              arXiv:{BRIEF.arxiv}
+            </a>
+            {" · "}
+            <a className="underline underline-offset-4" href="/k1">
+              K=1 proof
+            </a>
+            . 20×20 cloth, 400 nodes, CPU Vertex Block Descent. Not a GPU physics engine.
+          </p>
+          <p>{BRIEF.who}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Toggle variant="outline" pressed={emptyMesh} onPressedChange={setEmptyMesh}>
+              Empty mesh
+            </Toggle>
+            <Button size="xs" variant="outline" onClick={() => setK(0)}>
+              K=0
+            </Button>
+            <Badge variant="outline">live adjoint cap {LIVE_SOLVE_CAP}</Badge>
+          </div>
+          <pre className="overflow-x-auto rounded-lg bg-[#0b1018] p-4 font-mono text-[12px] leading-6 text-slate-200">
+            {`// reverse-color-order local blocks (2\u00d72 in this 2D slice)
+for (k = K-1; k >= 0; k--) {
+  rematerialize x^{k} from x0          // workspace O(N), not O(K\u00d7N)
+  for (color of [odd, even])           // reverse of the forward checkerboard
+    for (i of reverse(color))
+      \u03bc = solve(H_i\u1d40, -\u0101_i)
+      VJP through g_i, H_i into neighbors
+}`}
+          </pre>
+        </div>
+      </details>
 
       <Card className="bg-card/80">
         <CardHeader className="border-b">
@@ -298,49 +338,52 @@ export function ExplainerApp() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-2">
-          <ComparisonTable k={k} sweepVsUnrolled={liveSweepVsUnrolled} iftVsSweep={liveIftVsSweep} />
+          <ComparisonTable
+            k={k}
+            sweepVsUnrolled={liveSweepVsUnrolled}
+            iftVsUnrolled={liveIftVsUnrolled}
+            iftVsSweep={liveIftVsSweep}
+          />
         </CardContent>
       </Card>
 
-      <Card className="bg-card/80">
-        <CardHeader className="border-b">
-          <CardTitle>Reverse-color-order local blocks</CardTitle>
-          <CardDescription>
-            The backward pass is the forward block-implicit sweep run in reverse. Readable
-            implementation — not a global Jacobian, not fake arrows.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <pre className="overflow-x-auto rounded-lg bg-[#0b1018] p-4 font-mono text-[12px] leading-6 text-slate-200">
-            {`// Shu et al.: local 3\u00d73 adjoint (2\u00d72 in this 2D slice), reverse color order
-for (k = K-1; k >= 0; k--) {
-  rematerialize x^{k} from x0          // workspace O(N), not O(K\u00d7N)
-  for (color of [odd, even])           // reverse of the forward checkerboard
-    for (i of reverse(color))
-      \u03bc = solve(H_i\u1d40, -\u0101_i)           // vertex block \u2014 not assembled J
-      VJP through g_i, H_i into neighbors
-}`}
-          </pre>
-        </CardContent>
-      </Card>
+      <MemoryPanel
+        n={panelN}
+        k={k}
+        tape={allocLive ? tape : null}
+        measured={allocLive ? measured : null}
+        onAllocate={onAllocate}
+        onRelease={onRelease}
+        onCrank={() => setK(1000)}
+        showTapeControls
+      />
     </div>
   );
 }
 
-function CopyCard({ title, body }: { title: string; body: string }) {
+function ErrorReadout({
+  tone,
+  title,
+  formula,
+  value,
+  pending,
+}: {
+  tone: "blue" | "red";
+  title: string;
+  formula: string;
+  value: { headline: string; detail: string } | null;
+  pending: string;
+}) {
+  const color = tone === "blue" ? "text-blue-400" : "text-rose-400";
+  const border = tone === "blue" ? "border-blue-500/30" : "border-rose-500/30";
   return (
-    <Card className="bg-card/80">
-      <CardHeader>
-        <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm leading-6 text-pretty">{body}</p>
-      </CardContent>
-    </Card>
+    <div className={`rounded-xl border bg-card/80 px-4 py-3 ${border}`}>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
+      <p className={`font-mono text-5xl font-semibold tracking-tight sm:text-6xl ${color}`}>
+        {value?.headline ?? "—"}
+      </p>
+      <p className="text-sm text-muted-foreground">{value?.detail ?? pending}</p>
+      <p className="mt-1 font-mono text-[11px] text-muted-foreground/80">{formula}</p>
+    </div>
   );
-}
-
-function maxAbsDiffLabel(rel: number): string {
-  if (rel < 1e-10) return "sweep matches tape to machine precision";
-  return `sweep vs tape ${formatPct(rel)}`;
 }
