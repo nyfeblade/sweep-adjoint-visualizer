@@ -86,7 +86,7 @@ function touch(view: Float64Array): void {
 }
 
 function canReuse(buffer: Float64Array | undefined, length: number): buffer is Float64Array {
-  return Boolean(buffer) && buffer.length === length;
+  return buffer !== undefined && buffer.length === length;
 }
 
 /**
