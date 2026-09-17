@@ -19,12 +19,14 @@ import {
   createEmptyMesh,
   errorCopy,
   formatPct,
+  measureSolverWorkspaces,
   runExplainer,
-  runLive,
   setDraggedNode,
   tapeBytesFor,
   tryAllocateTape,
   type ClothState,
+  type MeasuredHold,
+  type MeasuredMemory,
   type OverlayMode,
   type SolverErrorCode,
   type TapeAllocation,
@@ -41,85 +43,96 @@ export function ExplainerApp() {
   const [iftAdj, setIftAdj] = useState<Float64Array | null>(null);
   const [iftVsSweep, setIftVsSweep] = useState<number | null>(null);
   const [sweepVsUnrolled, setSweepVsUnrolled] = useState<number | null>(null);
-  const [error, setError] = useState<SolverErrorCode | null>(null);
+  const [solveError, setSolveError] = useState<SolverErrorCode | null>(null);
   const [tape, setTape] = useState<TapeAllocation | null>(null);
+  const [measured, setMeasured] = useState<MeasuredMemory | null>(null);
+  const [allocLive, setAllocLive] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const tapeHold = useRef<ArrayBuffer | null>(null);
+  const measuredHold = useRef<MeasuredHold | null>(null);
+  const panelN = emptyMesh ? 0 : 400;
 
   const mesh = emptyMesh ? createEmptyMesh() : cloth;
   const liveK = Math.min(k, LIVE_SOLVE_CAP);
+  const arrowsCapped = !emptyMesh && k > LIVE_SOLVE_CAP;
+  const hardError: SolverErrorCode | null = emptyMesh ? "empty_mesh" : k <= 0 ? "k_zero" : null;
+  const error = hardError ?? solveError;
+  const livePositions = hardError ? null : positions;
+  const liveSweepAdj = hardError ? null : sweepAdj;
+  const liveIftAdj = hardError ? null : iftAdj;
+  const liveIftVsSweep = hardError ? null : iftVsSweep;
+  const liveSweepVsUnrolled = hardError ? null : sweepVsUnrolled;
 
   useEffect(() => {
-    if (emptyMesh) {
-      setError("empty_mesh");
-      setPositions(null);
-      setSweepAdj(null);
-      setIftAdj(null);
-      setIftVsSweep(null);
-      setSweepVsUnrolled(null);
-      return;
-    }
-    if (k <= 0) {
-      setError("k_zero");
-      setPositions(null);
-      setSweepAdj(null);
-      setIftAdj(null);
-      setIftVsSweep(null);
-      setSweepVsUnrolled(null);
-      return;
-    }
+    if (hardError || dragging) return;
 
-    setError(null);
-    try {
-      const live = runLive(cloneCloth(cloth), liveK);
-      setPositions(live.x);
-      setSweepAdj(live.sweepAdj);
-      setIftAdj(live.iftAdj);
-      setIftVsSweep(live.iftVsSweep);
-    } catch (caught) {
-      if (caught instanceof SweepAdjointError) {
-        setError(caught.code);
-        return;
-      }
-      throw caught;
-    }
-  }, [cloth, emptyMesh, k, liveK]);
-
-  useEffect(() => {
-    if (emptyMesh || k <= 0) return;
+    // One path after release / K change: positions + both adjoints + vs-unrolled.
+    // Yield so the last drag frame paints before the main-thread solve.
     const id = window.setTimeout(() => {
       try {
         const full = runExplainer(cloneCloth(cloth), liveK);
+        setSolveError(null);
+        setPositions(full.x);
+        setSweepAdj(full.sweepAdj);
+        setIftAdj(full.iftAdj);
+        setIftVsSweep(full.iftVsSweep);
         setSweepVsUnrolled(full.sweepVsUnrolled);
-      } catch {
-        setSweepVsUnrolled(null);
+      } catch (caught) {
+        if (caught instanceof SweepAdjointError) {
+          setSolveError(caught.code);
+          return;
+        }
+        throw caught;
       }
-    }, 180);
+    }, 0);
     return () => window.clearTimeout(id);
-  }, [cloth, emptyMesh, k, liveK]);
+  }, [cloth, dragging, hardError, liveK]);
 
-  const onDrag = (index: number, x: number, y: number) => {
+  const onDragStart = () => {
+    setDragging(true);
+  };
+
+  const onDragEnd = (index: number, x: number, y: number) => {
     setCloth((prev) => {
       const next = cloneCloth(prev);
       setDraggedNode(next, index, x, y);
       return next;
     });
+    setDragging(false);
   };
 
+  useEffect(() => {
+    if (!allocLive) {
+      tapeHold.current = null;
+      measuredHold.current = null;
+      return;
+    }
+    const allocK = Math.max(k, 1);
+    const nextTape = tryAllocateTape(tapeBytesFor(panelN, allocK));
+    tapeHold.current = nextTape.ok ? nextTape.buffer : null;
+    const nextMeasured = measureSolverWorkspaces(panelN, allocK, measuredHold.current);
+    measuredHold.current = nextMeasured.ok ? nextMeasured.hold : null;
+    const id = window.setTimeout(() => {
+      setTape(nextTape);
+      setMeasured(nextMeasured);
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [allocLive, panelN, k]);
+
   const onAllocate = () => {
-    const next = tryAllocateTape(tapeBytesFor(mesh.n || 400, Math.max(k, 1)));
-    tapeHold.current = next.ok ? next.buffer : null;
-    setTape(next);
+    setAllocLive(true);
   };
 
   const onRelease = () => {
-    tapeHold.current = null;
+    setAllocLive(false);
     setTape(null);
+    setMeasured(null);
   };
 
   const copy = error ? errorCopy(error) : null;
   const match =
-    sweepVsUnrolled !== null && Number.isFinite(sweepVsUnrolled)
-      ? maxAbsDiffLabel(sweepVsUnrolled)
+    liveSweepVsUnrolled !== null && Number.isFinite(liveSweepVsUnrolled)
+      ? maxAbsDiffLabel(liveSweepVsUnrolled)
       : null;
 
   return (
@@ -129,6 +142,10 @@ export function ExplainerApp() {
           {BRIEF.paper} ·{" "}
           <a className="underline underline-offset-4" href={BRIEF.arxivUrl}>
             arXiv:{BRIEF.arxiv}
+          </a>
+          {" · "}
+          <a className="underline underline-offset-4" href="/k1">
+            K=1 proof
           </a>
         </p>
         <h1 className="max-w-4xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
@@ -152,8 +169,9 @@ export function ExplainerApp() {
           <CardHeader className="border-b">
             <CardTitle>Drag a node</CardTitle>
             <CardDescription>
-              Gold node is the handle. Purple is the probe loss. At K=1, red IFT is wild; blue
-              reverse-sweep is the true gradient. Slide K up — they meet.
+              Gold node is the handle. Purple is the probe loss. Drag redraws the cloth; arrows and
+              error % recompute when you release. At K=1, red IFT is wild; blue reverse-sweep is the
+              true gradient. Slide K up — they meet.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pt-4">
@@ -165,12 +183,13 @@ export function ExplainerApp() {
             ) : null}
             <ClothCanvas
               state={mesh}
-              positions={positions}
-              sweepAdj={sweepAdj}
-              iftAdj={iftAdj}
+              positions={livePositions}
+              sweepAdj={liveSweepAdj}
+              iftAdj={liveIftAdj}
               overlay={overlay}
               disabled={Boolean(copy)}
-              onDrag={onDrag}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
             />
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
@@ -185,9 +204,9 @@ export function ExplainerApp() {
               <span className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-purple-400" /> Probe
               </span>
-              {iftVsSweep !== null ? (
+              {liveIftVsSweep !== null ? (
                 <span className="font-mono text-foreground">
-                  IFT vs sweep {formatPct(iftVsSweep)}
+                  IFT vs sweep {formatPct(liveIftVsSweep)}
                 </span>
               ) : null}
               {match ? <span className="font-mono text-blue-300">{match}</span> : null}
@@ -208,7 +227,11 @@ export function ExplainerApp() {
               <div className="flex items-baseline justify-between">
                 <span className="font-mono text-3xl font-semibold">{k}</span>
                 <span className="text-xs text-muted-foreground">
-                  live adjoint K={emptyMesh ? "\u2014" : liveK}
+                  {emptyMesh
+                    ? "live adjoint K=\u2014"
+                    : arrowsCapped
+                      ? `arrows use K=${liveK} (capped)`
+                      : `live adjoint K=${liveK}`}
                 </span>
               </div>
               <Slider
@@ -257,9 +280,10 @@ export function ExplainerApp() {
           </Card>
 
           <MemoryPanel
-            n={emptyMesh ? 0 : 400}
+            n={panelN}
             k={k}
-            tape={tape}
+            tape={allocLive ? tape : null}
+            measured={allocLive ? measured : null}
             onAllocate={onAllocate}
             onRelease={onRelease}
           />
@@ -274,7 +298,7 @@ export function ExplainerApp() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-2">
-          <ComparisonTable k={k} sweepVsUnrolled={sweepVsUnrolled} iftVsSweep={iftVsSweep} />
+          <ComparisonTable k={k} sweepVsUnrolled={liveSweepVsUnrolled} iftVsSweep={liveIftVsSweep} />
         </CardContent>
       </Card>
 

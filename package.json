@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start --port 43187 --hostname 127.0.0.1",
     "lint": "eslint",
-    "check:math": "npx tsx lib/sweep-adjoint/self-test.ts"
+    "check:math": "npx tsx lib/sweep-adjoint/self-test.ts",
+    "check:memory": "npx tsx scripts/verify_memory.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

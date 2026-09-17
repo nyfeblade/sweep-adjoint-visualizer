@@ -68,4 +68,33 @@ export type TapeAllocation =
   | { ok: true; bytes: number; buffer: ArrayBuffer }
   | { ok: false; bytes: number; reason: "oom" | "limit" };
 
+/** TypedArrays the two adjoints actually keep. Held so GC cannot drop them. */
+export type MeasuredHold = {
+  tape: Float64Array;
+  sweepWorkspace: Float64Array;
+};
+
+export type MeasuredMemory =
+  | {
+      ok: true;
+      n: number;
+      sweeps: number;
+      /** Sum of `.byteLength` of tape-path buffers actually held. */
+      tapeBytes: number;
+      /** Sum of `.byteLength` of sweep-path buffers actually held. Independent of K. */
+      sweepBytes: number;
+      /** Chromium `performance.memory.usedJSHeapSize` delta; null if unavailable. */
+      heapDeltaBytes: number | null;
+      hold: MeasuredHold;
+    }
+  | {
+      ok: false;
+      n: number;
+      sweeps: number;
+      tapeBytes: number;
+      sweepBytes: number;
+      heapDeltaBytes: number | null;
+      reason: "oom";
+    };
+
 export type OverlayMode = "both" | "sweep" | "ift";

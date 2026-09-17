@@ -22,9 +22,28 @@ export {
 } from "./solver";
 export { BRIEF, LIVE_SOLVE_CAP } from "./copy";
 export type { LiveResult } from "./solver";
-export { memoryReport, tryAllocateTape, tapeBytesFor, UNROLLED_BYTES_PER_VERTEX_ITER } from "./memory";
+export {
+  memoryReport,
+  tryAllocateTape,
+  tapeBytesFor,
+  measureSolverWorkspaces,
+  measuredTapeBytesFor,
+  measuredSweepBytesFor,
+  createUnrolledTape,
+  createSweepWorkspace,
+  UNROLLED_BYTES_PER_VERTEX_ITER,
+  MEASURED_BYTES_PER_VERTEX,
+} from "./memory";
 export { formatBytes, formatPct, relError, maxAbsDiff } from "./math2";
 export { probeLoss } from "./energy";
+export {
+  proveK1,
+  createK1ProofCloth,
+  fdForceGrad,
+  K1_PROOF_GRID,
+  K1_PROOF_SWEEPS,
+} from "./prove-k1";
+export type { K1Proof } from "./prove-k1";
 export type {
   ClothState,
   ClothParams,
@@ -32,5 +51,7 @@ export type {
   MemoryReport,
   OverlayMode,
   TapeAllocation,
+  MeasuredHold,
+  MeasuredMemory,
   MethodName,
 } from "./types";

@@ -7,7 +7,7 @@ import {
   seedProbeLossAdj,
 } from "./energy";
 import { requireMesh, colorOrder } from "./mesh";
-import { memoryReport } from "./memory";
+import { createSweepWorkspace, createUnrolledTape, memoryReport } from "./memory";
 import { copyF64 } from "./math2";
 import type { ClothState, ExplainerResult, LocalSystem } from "./types";
 
@@ -91,7 +91,7 @@ export function unrolledAdjoint(state: ClothState, sweeps: number): Float64Array
   const local = newLocal();
   const even = colorOrder(state.n, state.nx, 0);
   const odd = colorOrder(state.n, state.nx, 1);
-  const tape = new Float64Array(sweeps * state.n * 2);
+  const tape = createUnrolledTape(state.n, sweeps);
 
   for (let k = 0; k < sweeps; k++) {
     const slice = tape.subarray(k * state.n * 2, (k + 1) * state.n * 2);
@@ -135,7 +135,7 @@ export function sweepAdjoint(state: ClothState, sweeps: number, x0: Float64Array
   const local = newLocal();
   const even = colorOrder(state.n, state.nx, 0);
   const odd = colorOrder(state.n, state.nx, 1);
-  const workspace = new Float64Array(state.n * 2);
+  const workspace = createSweepWorkspace(state.n);
   const adj = new Float64Array(state.n * 2);
   const forceAdj = new Float64Array(state.n * 2);
 
