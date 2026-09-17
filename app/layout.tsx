@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: BRIEF.title,
-  description: BRIEF.thisDemo,
+  description: BRIEF.thesis.join(" "),
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

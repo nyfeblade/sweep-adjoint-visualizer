@@ -1,8 +1,13 @@
 export const BRIEF = {
-  title: "Sweep-Adjoint Visualizer: Exact Gradients at O(1) Memory",
+  title: "Sweep-Adjoint Visualizer",
   paper: "Shu et al., Differentiate the Solver, Not the Equation",
   arxiv: "2608.08559",
   arxivUrl: "https://arxiv.org/abs/2608.08559",
+  thesis: [
+    "You ran a solver for K sweeps and want gradients of a loss.",
+    "Red = IFT (differentiate the equilibrium equation) — wrong at small K.",
+    "Blue = sweep-adjoint (run the same local block updates backward) — matches tape AD; memory flat in K.",
+  ] as const,
   problem:
     "Unrolled AD tapes the stepper. Memory grows with K. Equation-level IFT (Neural ODE / DEQ / optimization layers) differentiates the fixed point, not the finite solver that ran. At K=1 it is 37% off. No loved crate is the reverse-colored Gauss–Seidel of the energy-minimizing sweep that actually executed.",
   thisDemo:

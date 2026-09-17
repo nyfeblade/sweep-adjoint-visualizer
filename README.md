@@ -91,14 +91,14 @@ Open `/k1` for the three-number proof page. Tag `v0.1.0-proof` is the first publ
 
 ## GIF-quality: what you watch
 
-1. The page opens at **K=1** on a hanging 20×20 curtain.
-2. **Drag the gold node** (or another free node) down and sideways.
-3. **Red IFT arrows** spray across the cloth — the equation-level adjoint, wild at K=1.
-4. **Blue reverse-sweep arrows** stay with the solver that actually ran. They match unrolled AD to machine precision.
-5. Click **K=32**. Red and blue meet.
-6. Drag the K slider to **1000**. The tape-AD memory bar balloons O(K×N). Sweep-adjoint stays a flat sliver — O(1) versus K.
-7. **Materialize tape** at large K: schematic allocation grows with K×N×256 B, then OOM. The **Measured** bars next to it are `.byteLength` of the real tape (K×N×16 B) and sweep workspace (N×16 B, flat vs K).
-8. **K=0** and **Empty mesh** are hard errors, not blank screens.
+1. The page opens at **K=1** with the 3-line thesis and two huge live error %.
+2. **Drag the gold node.** Arrows and error % recompute when you release.
+3. Toggle **Red IFT alone**, then **Blue sweep alone**, then **Both**.
+4. Read **|blue − unrolled| / |unrolled|** (~0) and **|red − unrolled| / |unrolled|** (tens of percent at K=1).
+5. Raise **K**. Red approaches blue.
+6. **Crank K to 1000**. Schematic tape bar ≫ flat sweep workspace (labeled schematic, not a measured heap).
+7. **Materialize tape**: **Measured** bars are `.byteLength` of the real tape (K×N×16 B) and sweep workspace (N×16 B, flat vs K).
+8. **Details** holds arXiv, VBD, reverse-color, empty mesh, K=0, tape allocate, and the `/k1` proof.
 
 ## Math (in-repo)
 

@@ -114,15 +114,23 @@ export function ClothCanvas({
   };
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="h-[min(72vw,560px)] w-full cursor-grab touch-none rounded-xl bg-[#0b1018] active:cursor-grabbing"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      onLostPointerCapture={endDrag}
-    />
+    <div className="relative">
+      <p className="pointer-events-none absolute left-3 top-3 z-10 rounded-md bg-black/55 px-2 py-1 text-sm font-medium text-amber-300">
+        Drag the gold node.
+      </p>
+      <p className="pointer-events-none absolute bottom-3 left-3 z-10 max-w-[90%] text-[11px] leading-4 text-slate-300/90">
+        Arrows are gradient estimates — red IFT, blue sweep-adjoint — not forces on the cloth.
+      </p>
+      <canvas
+        ref={canvasRef}
+        className="h-[min(72vw,560px)] w-full cursor-grab touch-none rounded-xl bg-[#0b1018] active:cursor-grabbing"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onLostPointerCapture={endDrag}
+      />
+    </div>
   );
 }
 

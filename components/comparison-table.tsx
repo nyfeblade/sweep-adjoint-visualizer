@@ -13,18 +13,25 @@ import { formatPct } from "@/lib/sweep-adjoint";
 type ComparisonTableProps = {
   k: number;
   sweepVsUnrolled: number | null;
+  iftVsUnrolled: number | null;
   iftVsSweep: number | null;
 };
 
-export function ComparisonTable({ k, sweepVsUnrolled, iftVsSweep }: ComparisonTableProps) {
+export function ComparisonTable({
+  k,
+  sweepVsUnrolled,
+  iftVsUnrolled,
+  iftVsSweep,
+}: ComparisonTableProps) {
   const sweepAcc =
-    sweepVsUnrolled === null ? "—" : sweepVsUnrolled < 1e-8 ? "matches tape (0%)" : formatPct(sweepVsUnrolled);
-  const iftAcc =
-    iftVsSweep === null
+    sweepVsUnrolled === null
       ? "—"
-      : k <= 1
-        ? `${formatPct(iftVsSweep)} off — wild`
-        : `${formatPct(iftVsSweep)} off`;
+      : sweepVsUnrolled < 1e-8
+        ? "matches tape (~0)"
+        : formatPct(sweepVsUnrolled);
+  const redRel = iftVsUnrolled ?? iftVsSweep;
+  const iftAcc =
+    redRel === null ? "—" : k <= 1 ? `${formatPct(redRel)} off — wild` : `${formatPct(redRel)} off`;
 
   return (
     <Table>
@@ -33,7 +40,7 @@ export function ComparisonTable({ k, sweepVsUnrolled, iftVsSweep }: ComparisonTa
           <TableHead>Method</TableHead>
           <TableHead>Accuracy at this K</TableHead>
           <TableHead>Memory scaling</TableHead>
-          <TableHead>Compute flow</TableHead>
+          <TableHead>What it differentiates</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -41,19 +48,19 @@ export function ComparisonTable({ k, sweepVsUnrolled, iftVsSweep }: ComparisonTa
           <TableCell className="font-medium">Unrolled AD</TableCell>
           <TableCell>True gradient (tape)</TableCell>
           <TableCell className="font-mono">O(K×N)</TableCell>
-          <TableCell>Forward tape, then reverse every stored step</TableCell>
+          <TableCell>The K solver steps that actually ran</TableCell>
         </TableRow>
         <TableRow>
-          <TableCell className="font-medium text-rose-400">IFT</TableCell>
+          <TableCell className="font-medium text-rose-400">IFT (red)</TableCell>
           <TableCell>{iftAcc}</TableCell>
           <TableCell className="font-mono">O(N)</TableCell>
-          <TableCell>One linear solve on the residual — the equation, not the solver</TableCell>
+          <TableCell>The equilibrium equation — wrong at small K</TableCell>
         </TableRow>
         <TableRow>
-          <TableCell className="font-medium text-blue-400">Sweep-adjoint</TableCell>
+          <TableCell className="font-medium text-blue-400">Sweep-adjoint (blue)</TableCell>
           <TableCell>{sweepAcc}</TableCell>
-          <TableCell className="font-mono">O(1) vs K</TableCell>
-          <TableCell>Reverse-color-order local 3×3 / 2×2 blocks. No global Jacobian.</TableCell>
+          <TableCell className="font-mono">flat in K</TableCell>
+          <TableCell>The same local block updates, run backward</TableCell>
         </TableRow>
       </TableBody>
     </Table>
